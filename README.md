@@ -27,6 +27,7 @@ These scripts will create the $HOME/dockershare directory.
 These scripts assume you have the following IP addresses available locally on your Docker system:
 - 192.168.42.141
 - 192.168.42.142
+
 If you want to use other local IP addresses then you'll need to modify the scripts.
 
 First, use `docker login` to log in to Docker.
@@ -43,6 +44,7 @@ These scripts will create the $HOME/dockershare directory.
 These scripts assume you have the following IP addresses available locally on your Docker system:
 - 192.168.42.141
 - 192.168.42.142
+
 If you want to use other local IP addresses then you'll need to modify the scripts.
 
 First, use `docker login` to log in to Docker.
