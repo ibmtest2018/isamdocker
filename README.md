@@ -1,6 +1,6 @@
 # Common Requirements and Setup
 
-Copy the studentfiles directory to your home directory so that you have $HOME/studentfiles containing config-archives and container-install directories.  If you want to store the scripts elsewhere you will need to modify the SF environment variable whereever it appears in the scripts.
+Copy the studentfiles directory to your home directory so that you have $HOME/studentfiles containing container-install directory.  If you want to store the scripts elsewhere you will need to modify the SF environment variable whereever it appears in the scripts.
 
 These scripts expect to have write access to $HOME and /tmp.
 
