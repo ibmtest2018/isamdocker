@@ -1,8 +1,3 @@
-# isamdocker
-
-These files are provided as-is with no warranty expressed or implied.  Use at your own risk.
-These files are only intended for use in a sandboxed learning environment; they might break or delete stuff.
-
 # Common Requirements and Setup
 
 Copy the studentfiles directory to your home directory so that you have $HOME/studentfiles containing config-archives and container-install directories.  If you want to store the scripts elsewhere you will need to modify the SF environment variable whereever it appears in the scripts.
@@ -105,3 +100,24 @@ To restore from a backup, perform these steps:
 1. Run `./sam-restore....sh <archive tar file>` to restore configuration.
 
 Note that you will see errors during the restore when it attempts to create LDAP and DB objects that already exist.
+
+
+# License
+
+The contents of this repository are open-source under the Apache 2.0 licence.
+
+```
+Copyright 2018 International Business Machines
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
