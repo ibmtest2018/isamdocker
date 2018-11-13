@@ -238,13 +238,10 @@ kind: Service
 metadata:
   name: isamconfig
 spec:
-  type: NodePort
   ports:
     - port: 9443
       name: isamconfig
       protocol: TCP
-# make this one statically allocated
-      nodePort: 30442
   selector:
     app: isamconfig
 ---
