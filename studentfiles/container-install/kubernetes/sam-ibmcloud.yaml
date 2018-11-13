@@ -101,8 +101,8 @@ spec:
               value: isam
             - name: POSTGRES_SSL_KEYDB
               value: /var/local/server.pem
-             - name: PGDATA
-               value: /var/lib/postgresql/data/db-files/
+            - name: PGDATA
+              value: /var/lib/postgresql/data/db-files/
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
               name: postgresqldata
