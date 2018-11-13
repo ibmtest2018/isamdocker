@@ -1,0 +1,31 @@
+<server description="SAMLRP">
+
+    <!-- Enable features -->
+    <featureManager>
+        <feature>webProfile-7.0</feature>
+        <feature>appSecurity-2.0</feature>
+        <feature>ssl-1.0</feature>
+        <feature>samlWeb-2.0</feature>
+    </featureManager>
+
+    <!-- To access this server from a remote client add a host attribute to the following element, e.g. host="*" -->
+    <httpEndpoint host="*" httpsPort="9443" id="defaultHttpEndpoint"/>
+
+    <!-- Automatically expand WAR files and EAR files -->
+    <applicationManager autoExpand="true"/>
+
+    <!-- Documentation at: https://www.ibm.com/support/knowledgecenter/en/SS7K4U_liberty/com.ibm.websphere.wlp.zseries.doc/ae/twlp_config_saml_web_sso.html -->
+    <!-- SP metadata: https://<hostname>.mybluemix.net/ibm/saml20/defaultSP/samlmetadata -->
+
+    <samlWebSso20 
+       createSession="true" 
+       enabled="true"
+       id="defaultSP"
+       includeTokenInSubject="true"
+       spHostAndPort="https://www.iamlab.ibm.com:9443"
+       idpMetadata="${server.config.dir}/metadata/metadata.xml"
+    />
+
+    <!--  tracing that is useful, no need to set it unless debugging -->
+    <logging traceSpecification="*=info"/>
+</server>

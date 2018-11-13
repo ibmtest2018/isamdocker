@@ -1,0 +1,137 @@
+version: '3'
+
+volumes:
+  isamconfig:
+  libldap:
+  ldapslapd:
+  libsecauthority:
+  pgdata:
+
+services:
+
+#
+# Security Access Manager Containers
+#
+
+  isamconfig:
+    image: store/ibmcorp/isam:${ISAM_VERSION}
+    hostname: isamconfig
+    restart: always
+    environment:
+      - SERVICE=config
+#     - SNAPSHOT=${SNAPSHOT}
+#     - FIXPACKS=${FIXPACKS}
+      - CONTAINER_TIMEZONE=${TIMEZONE}
+      - ADMIN_PWD=${ADMIN_PASSWORD}
+    volumes:
+      - isamconfig:/var/shared
+    ports:
+      - ${LMI_IP}:443:9443
+    depends_on:
+      - openldap
+      - postgresql
+    cap_add:
+      - SYS_PTRACE
+      - SYS_RESOURCE
+ 
+  isamwrprp1:
+    image: store/ibmcorp/isam:${ISAM_VERSION}
+    hostname: isamwrprp1
+    networks:
+      default:
+        aliases:
+          - www.iamlab.ibm.com
+    restart: always
+    environment:
+      - SERVICE=webseal
+      - INSTANCE=rp1
+#     - SNAPSHOT=${SNAPSHOT}
+#     - FIXPACKS=${FIXPACKS}
+      - CONTAINER_TIMEZONE=${TIMEZONE}
+      - AUTO_RELOAD_FREQUENCY=5
+    volumes:
+      - isamconfig:/var/shared
+    ports:
+      - ${WEB1_IP}:443:443
+    depends_on:
+      - openldap
+    cap_add:
+      - SYS_PTRACE
+      - SYS_RESOURCE
+
+  isamruntime:
+    image: store/ibmcorp/isam:${ISAM_VERSION}
+    hostname: isamruntime
+    restart: always
+    environment:
+      - SERVICE=runtime
+#     - SNAPSHOT=${SNAPSHOT}
+#     - FIXPACKS=${FIXPACKS}
+      - CONTAINER_TIMEZONE=${TIMEZONE}
+      - AUTO_RELOAD_FREQUENCY=5
+    volumes:
+      - isamconfig:/var/shared
+    depends_on:
+      - openldap
+      - postgresql
+    cap_add:
+      - SYS_PTRACE
+      - SYS_RESOURCE
+
+  isamdsc:
+    image: store/ibmcorp/isam:${ISAM_VERSION}
+    hostname: isamdsc
+    restart: always
+    environment:
+      - SERVICE=dsc
+      - INSTANCE=1
+#     - SNAPSHOT=${SNAPSHOT}
+#     - FIXPACKS=${FIXPACKS}
+      - CONTAINER_TIMEZONE=${TIMEZONE}
+      - AUTO_RELOAD_FREQUENCY=5
+    volumes:
+      - isamconfig:/var/shared
+    cap_add:
+      - SYS_PTRACE
+      - SYS_RESOURCE
+
+#
+# Service Containers
+#
+
+  openldap:
+    image: ibmcom/isam-openldap:${ISAM_VERSION}
+    hostname: openldap
+    restart: always
+    command: --copy-service
+    environment:
+      - LDAP_ADMIN_PASSWORD=Passw0rd
+      - LDAP_CONFIG_PASSWORD=Passw0rd
+      - LDAP_DOMAIN=ibm.com
+#     - LDAP_BASE_DN=${LDAP_BASE_DN}
+#     - LDAP_TLS_VERIFY_CLIENT=${LDAP_TLS_VERIFY_CLIENT}
+#     - LDAP_ORGANISATION=${LDAP_ORGANISATION}
+#     - LDAP_ENABLE_PORT_389=${LDAP_SSL_DISABLED}
+    volumes:
+      - libldap:/var/lib/ldap
+      - ldapslapd:/etc/ldap/slapd.d
+      - libsecauthority:/var/lib/ldap.secAuthority
+      - ${HOME}/dockershare/composekeys/openldap:/container/service/slapd/assets/certs
+    ports:
+#      - ${LDAP_PORT}:389
+      - ${LMI_IP}:1636:636
+
+  postgresql:
+    image: ibmcom/isam-postgresql:${ISAM_VERSION}
+    hostname: postgresql
+    restart: always
+    environment:
+      - POSTGRES_DB=isam
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Passw0rd
+      - POSTGRES_SSL_KEYDB=/var/local/server.pem
+#     - POSTGRES_UNSECURE=${DB_SSL_DISABLED}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ${HOME}/dockershare/composekeys/postgresql:/var/local
+

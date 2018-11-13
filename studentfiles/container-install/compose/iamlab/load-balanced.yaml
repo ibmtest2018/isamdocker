@@ -1,0 +1,148 @@
+version: '3'
+
+volumes:
+  isamconfig:
+  libldap:
+  ldapslapd:
+  libsecauthority:
+  pgdata:
+
+services:
+
+#
+# Security Access Manager Containers
+#
+
+  isamconfig:
+    image: store/ibmcorp/isam:${ISAM_VERSION}
+    hostname: isamconfig
+    restart: always
+    environment:
+      - SERVICE=config
+#     - SNAPSHOT=${SNAPSHOT}
+#     - FIXPACKS=${FIXPACKS}
+      - CONTAINER_TIMEZONE=${TIMEZONE}
+      - ADMIN_PWD=${ADMIN_PASSWORD}
+    volumes:
+      - isamconfig:/var/shared
+    ports:
+      - ${LMI_IP}:443:9443
+    depends_on:
+      - openldap
+      - postgresql
+    cap_add:
+      - SYS_PTRACE
+      - SYS_RESOURCE
+
+  isamwrprp1:
+    image: store/ibmcorp/isam:${ISAM_VERSION}
+    restart: always
+    environment:
+      - SERVICE=webseal
+      - INSTANCE=rp1
+#     - SNAPSHOT=${SNAPSHOT}
+#     - FIXPACKS=${FIXPACKS}
+      - CONTAINER_TIMEZONE=${TIMEZONE}
+      - AUTO_RELOAD_FREQUENCY=5
+      - EXTRA_ROUTE_SETTINGS=ssl verify none
+      - HEALTH_CHECK=check-ssl inter 2000 rise 2 fall 3
+      - COOKIE=SRV insert indirect nocache
+    volumes:
+      - isamconfig:/var/shared
+#    ports:
+#      - ${WEB1_IP}:443:443
+    depends_on:
+      - openldap
+    cap_add:
+      - SYS_PTRACE
+      - SYS_RESOURCE
+
+  isamruntime:
+    image: store/ibmcorp/isam:${ISAM_VERSION}
+    hostname: isamruntime
+    restart: always
+    environment:
+      - SERVICE=runtime
+#     - SNAPSHOT=${SNAPSHOT}
+#     - FIXPACKS=${FIXPACKS}
+      - CONTAINER_TIMEZONE=${TIMEZONE}
+      - AUTO_RELOAD_FREQUENCY=5
+    volumes:
+      - isamconfig:/var/shared
+    depends_on:
+      - openldap
+      - postgresql
+    cap_add:
+      - SYS_PTRACE
+      - SYS_RESOURCE
+
+  isamdsc:
+    image: store/ibmcorp/isam:${ISAM_VERSION}
+    restart: always
+    hostname: isamdsc
+    environment:
+      - SERVICE=dsc
+      - INSTANCE=1
+#     - SNAPSHOT=${SNAPSHOT}
+#     - FIXPACKS=${FIXPACKS}
+      - CONTAINER_TIMEZONE=${TIMEZONE}
+      - AUTO_RELOAD_FREQUENCY=5
+    volumes:
+      - isamconfig:/var/shared
+    cap_add:
+      - SYS_PTRACE
+      - SYS_RESOURCE
+
+#
+# Service Containers
+#
+
+  openldap:
+    image: ibmcom/isam-openldap:${ISAM_VERSION}
+    hostname: openldap
+    restart: always
+    command: --copy-service
+    environment:
+      - LDAP_ADMIN_PASSWORD=Passw0rd
+      - LDAP_CONFIG_PASSWORD=Passw0rd
+      - LDAP_DOMAIN=ibm.com
+#     - LDAP_BASE_DN=${LDAP_BASE_DN}
+#     - LDAP_TLS_VERIFY_CLIENT=${LDAP_TLS_VERIFY_CLIENT}
+#     - LDAP_ORGANISATION=${LDAP_ORGANISATION}
+#     - LDAP_ENABLE_PORT_389=${LDAP_SSL_DISABLED}
+    volumes:
+      - libldap:/var/lib/ldap
+      - ldapslapd:/etc/ldap/slapd.d
+      - libsecauthority:/var/lib/ldap.secAuthority
+      - ${HOME}/dockershare/composekeys/openldap:/container/service/slapd/assets/certs
+    ports:
+#      - ${LDAP_PORT}:389
+      - ${LMI_IP}:1636:636
+
+  postgresql:
+    image: ibmcom/isam-postgresql:${ISAM_VERSION}
+    hostname: postgresql
+    restart: always
+    environment:
+      - POSTGRES_DB=isam
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Passw0rd
+      - POSTGRES_SSL_KEYDB=/var/local/server.pem
+#     - POSTGRES_UNSECURE=${DB_SSL_DISABLED}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ${HOME}/dockershare/composekeys/postgresql:/var/local
+
+  lb:
+    image: dockercloud/haproxy
+    restart: always
+    environment:
+      - BALANCE=source
+      - DEFAULT_SSL_CERT=-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCiNHBhb1bpCZnk\nJGZaVAMFLUENNBtG5WSAPXHVUOor+fiL+Fc8xwcNujn1tJwP0tOyuZ+wOnWyVfcY\nDAhsAVgwB7cnn4zybUgIu0e91JtGfynG1dpNbvup+Pj1rJx+znu+xcEgj+RFn0qw\nQStPV3BZDpxFbeoVFcOycdDDVDvSVqOe5h84/QAU+PEj/kjWjTIn1onYbL25aEvb\nwAZeDv5RIIJNW/IB5/Y9lqkOr43Cuaofg12VIT6pIHmmX1NtVYvUQDZIgu8I7hnV\n+T84zoybNTMDy5OEdfwFwqoEIiSTwj7ND2cy6Ob3/LB1i+bb93CAtK4erailElTP\npz8rsBNPAgMBAAECggEALfBOF7pR0gRPGmcYueJrTI8JinTEeOrE8PD2CWU2PSg5\ntWKrSmJP5BpnCeiR/oVGQasCyAV2igCAz8WwqO4kjM3SmJ0+bPZ4XUi1Q9Uv+OJQ\n8ahlgGK7UeNalzHAzMUsFNarIM6/5tv7ajm6y2jHP+G8bol3r2sPlr1XU8rKeoJt\nva0nXNT4PEGbThC/nXJXUm493en8f6iFjAb845O+Xa+1gNwIrZqQSVswI7Iz1MX5\nSELoiP//oOt2F9rUDuPsug12VTy2qQjH4uMP2mAL/EJO8oNjcIEkQTsZfzOHu1vw\nRJSO97H2Max33uQM1wKZkeZQhJAXdNDla3yos9JJYQKBgQDL0jfzaJyOE2UFWxoK\nScDz0qDeCJqOl45PEiHxQVv3BJfoeKA69HniHtZrIGwI6j5oaTIXNz8+grqi4byh\nOc2QbzeGRi7CIklkrNhjapQuNMcaDMgrOluFxcuVQvh81EafNWAi2iZzHXguTptG\nk6QkmOLAr+Q/POgg6UXhRHBUUQKBgQDLutIZhochyWPRv9DCmGlehwGPO1yx8aIV\njRNRlXTd/CMLjhFNktAFCEpaDhBwRIwcNR8vDxRnKo/WJKGmKhjx62yRBZVKYPKt\nTbhfDDLOOW9yQlQpjKvLmwuGbVGOt2QueWYlaC4vq0+e+SL40JoEBtOsYDo4HUDx\nbeOiDvwlnwKBgQC4nrNFjPV6EAFKZ6nftczMTnaeiAaPsKIb513NbRmDV6rNzS2+\nGSKp+qrYIGcbcCqVYuwXcVidI8cwsO6uz2/vK36M5teFy47VXWcoLisI64+Jfhh2\nZ4btVivBCQeR8qoBnlR1XUrErOXmdBdcR3HAIKgMR4ak7WOKJCLDGL3y8QKBgBrW\nNEDqiLh5p+2EYAKSQycRj7IHdtF17Az8tXPExU1Mnm0yPLNESKSxD+JHAgFX9kDs\n+nufd+eTIrlpv+V8nCaaBYYg/yZ6GN2dZFEY8URbKoQZmq6Sejrq5JzDn7+2Brtc\ngIki7RqYbXeah/HQwMkRAScu0dx8dgaXnCnH4Y0vAoGAC1A/+bMEkHoiFu7T38B3\n9zpzyAw7t4bT0MQTDqAeDdFsDxhhjnkll2FNfDRhfj5mEstY3LcPRGUfvRVlJjQc\nh1ryui2YFYtEVMKz8XmwMYAl3JmvLVvhSLC0QSEJ0uXADFwtPKakXkp3scCh6QIK\ngRL+ioLQWkDZPHUX+FjLWNM=\n-----END PRIVATE KEY-----\n-----BEGIN CERTIFICATE-----\nMIIDSTCCAjGgAwIBAgIJAOZKspqszTmTMA0GCSqGSIb3DQEBCwUAMDsxGzAZBgNV\nBAMMEnd3dy5pYW1sYWIuaWJtLmNvbTEPMA0GA1UECgwGSUFNTEFCMQswCQYDVQQG\nEwJVUzAeFw0xODAyMTMxMjU1MTdaFw0yODAyMTExMjU1MTdaMDsxGzAZBgNVBAMM\nEnd3dy5pYW1sYWIuaWJtLmNvbTEPMA0GA1UECgwGSUFNTEFCMQswCQYDVQQGEwJV\nUzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKI0cGFvVukJmeQkZlpU\nAwUtQQ00G0blZIA9cdVQ6iv5+Iv4VzzHBw26OfW0nA/S07K5n7A6dbJV9xgMCGwB\nWDAHtyefjPJtSAi7R73Um0Z/KcbV2k1u+6n4+PWsnH7Oe77FwSCP5EWfSrBBK09X\ncFkOnEVt6hUVw7Jx0MNUO9JWo57mHzj9ABT48SP+SNaNMifWidhsvbloS9vABl4O\n/lEggk1b8gHn9j2WqQ6vjcK5qh+DXZUhPqkgeaZfU21Vi9RANkiC7wjuGdX5PzjO\njJs1MwPLk4R1/AXCqgQiJJPCPs0PZzLo5vf8sHWL5tv3cIC0rh6tqKUSVM+nPyuw\nE08CAwEAAaNQME4wHQYDVR0OBBYEFFdxbUNrRT0R5GNavjDTNRgcUjEFMB8GA1Ud\nIwQYMBaAFFdxbUNrRT0R5GNavjDTNRgcUjEFMAwGA1UdEwQFMAMBAf8wDQYJKoZI\nhvcNAQELBQADggEBACzwcqujL4sJc2BllzElPQhB5hRtKyTOJI7d5ypuxeeHIwV5\n79U3t9HnQ9/lz5zRg0hpBjUrRJICJvEYJJ9rl6ESlKjScvzIHhSZ5kW7aLCyaaO4\n2byz8Mc6GfpRK70XUKE0YPkrAvCzrF+RjsQno9nNZURcLB5sX5saVhG0fApx7Bn/\noDP8tY1gdPOEdlaqnMyoNCco7k0JtNBFHBWWw406u6rFoCM0CFAFl3a1ldgy0w5N\nuDvjF5RY/92idSF5DiOO//stuBClFbDU7nIU7b2cpqHJ60zEUzsHc5BAWSRGELOR\ntcAKoI0ODrK/i5VDnRAix3PYNYJc249QRjjRE1I=\n-----END CERTIFICATE-----\n
+    ports:
+      - ${WEB1_IP}:443:443
+    links:
+      - isamwrprp1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+

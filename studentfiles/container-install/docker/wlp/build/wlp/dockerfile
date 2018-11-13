@@ -1,0 +1,4 @@
+FROM store/ibmcorp/websphere-liberty:webProfile7
+ADD wlp-config /config
+RUN installUtility install --acceptLicense defaultServer
+

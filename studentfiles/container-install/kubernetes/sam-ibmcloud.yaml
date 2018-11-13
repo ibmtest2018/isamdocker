@@ -1,0 +1,392 @@
+#Assumes create-docker-store-secret.sh used to create dockerlogin secret
+#Assumes create-secrets.sh used to create key file, sam admin, and cfgsvc secrets
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: openldap
+  labels:
+    app: openldap
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: openldap
+    spec:
+      volumes:
+        - name: ldaplib
+          emptyDir: {}
+        - name: ldapslapd
+          emptyDir: {}
+        - name: ldapsecauthority
+          emptyDir: {}
+        - name: openldap-keys
+          secret:
+            secretName: openldap-keys
+      containers:
+        - name: openldap
+          image: ibmcom/isam-openldap:9.0.5.0
+          ports:
+            - containerPort: 636
+          env:
+            - name: LDAP_DOMAIN
+              value: ibm.com
+            - name: LDAP_ADMIN_PASSWORD
+              value: Passw0rd
+            - name: LDAP_CONFIG_PASSWORD
+              value: Passw0rd
+          volumeMounts:
+            - mountPath: /var/lib/ldap
+              name: ldaplib
+            - mountPath: /etc/ldap/slapd.d
+              name: ldapslapd
+            - mountPath: /var/lib/ldap.secAuthority
+              name: ldapsecauthority
+            - mountPath: /container/service/slapd/assets/certs
+              name: openldap-keys
+# This line is needed when running on Kubernetes 1.9.4 or above
+          args: [ "--copy-service"]
+# useful for debugging startup issues - can run bash, then exec to the container and poke around
+#          command: [ "/bin/bash"]
+#          args: [ "-c", "while /bin/true ; do sleep 5; done" ]
+# Just this line to get debug output from openldap startup
+#          args: [ "--loglevel" , "trace","--copy-service"]
+---
+# for external service access, see https://console.bluemix.net/docs/containers/cs_apps.html#cs_apps_public_nodeport
+apiVersion: v1
+kind: Service
+metadata:
+  name: openldap
+  labels:
+    app: openldap
+spec:
+  ports:
+    - port: 636
+      name: ldaps
+      protocol: TCP
+  selector:
+    app: openldap
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: postgresql
+  labels:
+    app: postgresql
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      volumes:
+        - name: postgresqldata
+          emptyDir: {}
+        - name: postgresql-keys
+          secret:
+            secretName: postgresql-keys
+      containers:
+        - name: postgresql
+          image: ibmcom/isam-postgresql:9.0.5.0
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: Passw0rd
+            - name: POSTGRES_DB
+              value: isam
+            - name: POSTGRES_SSL_KEYDB
+              value: /var/local/server.pem
+             - name: PGDATA
+               value: /var/lib/postgresql/data/db-files/
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgresqldata
+            - mountPath: /var/local
+              name: postgresql-keys
+# useful for debugging startup issues - can run bash, then exec to the container and poke around
+#          command: [ "/bin/bash"]
+#          args: [ "-c", "while /bin/true ; do sleep 5; done" ]
+---
+# for external service access, see https://console.bluemix.net/docs/containers/cs_apps.html#cs_apps_public_nodeport
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+spec:
+  ports:
+    - port: 5432
+      name: postgresql
+      protocol: TCP
+  selector:
+    app: postgresql
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: isamconfig
+  labels:
+    app: isamconfig
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: isamconfig
+    spec:
+      volumes:
+        - name: isamconfig
+          emptyDir: {}
+        - name: isamconfig-logs
+          emptyDir: {}
+      containers:
+        - name: isamconfig
+          image: store/ibmcorp/isam:9.0.5.0
+          volumeMounts:
+            - mountPath: /var/shared
+              name: isamconfig
+            - mountPath: /var/application.logs
+              name: isamconfig-logs
+          securityContext:
+            capabilities:
+              add:
+                - SYS_PTRACE
+                - SYS_RESOURCE
+          env:
+            - name: SERVICE
+              value: config
+            - name: CONTAINER_TIMEZONE
+              value: Europe/London
+            - name: ADMIN_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: samadmin
+                  key: adminpw
+#          command: [ "/sbin/bootstrap.sh" ]
+      imagePullSecrets:
+        - name: dockerlogin
+---
+# for external service access, see https://console.bluemix.net/docs/containers/cs_apps.html#cs_apps_public_nodeport
+apiVersion: v1
+kind: Service
+metadata:
+  name: isamconfig
+spec:
+# To make the LMI internet facing, make it a NodePort
+#  type: NodePort
+  ports:
+    - port: 9443
+      name: isamconfig
+      protocol: TCP
+# make this one statically allocated
+#      nodePort: 30442
+  selector:
+    app: isamconfig
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: isamwrprp1
+  labels:
+    app: isamwrprp1
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: isamwrprp1
+    spec:
+      volumes:
+        - name: isamconfig
+          emptyDir: {}
+        - name: isamwrprp1-logs
+          emptyDir: {}
+      containers:
+        - name: isamwrprp1
+          image: store/ibmcorp/isam:9.0.5.0
+          ports:
+            - containerPort: 443
+          volumeMounts:
+            - mountPath: /var/shared
+              name: isamconfig
+            - mountPath: /var/application.logs
+              name: isamwrprp1-logs
+          securityContext:
+            capabilities:
+              add:
+                - SYS_PTRACE
+                - SYS_RESOURCE
+          env:
+            - name: SERVICE
+              value: webseal
+            - name: INSTANCE
+              value: rp1 
+            - name: CONTAINER_TIMEZONE
+              value: Europe/London
+            - name: AUTO_RELOAD_FREQUENCY
+              value: "5"
+            - name: CONFIG_SERVICE_URL
+              value: https://isamconfig:9443/shared_volume
+            - name: CONFIG_SERVICE_USER_NAME
+              value: cfgsvc
+            - name: CONFIG_SERVICE_USER_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: configreader
+                  key: cfgsvcpw
+      imagePullSecrets:
+        - name: dockerlogin
+---
+# for external service access, see https://console.bluemix.net/docs/containers/cs_apps.html#cs_apps_public_nodeport
+apiVersion: v1
+kind: Service
+metadata:
+  name: isamwrprp1
+spec:
+  type: NodePort
+  sessionAffinity: ClientIP
+  ports:
+    - port: 443
+      name: isamwrprp1
+      protocol: TCP
+      nodePort: 30443
+  selector:
+    app: isamwrprp1
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: isamruntime
+  labels:
+    app: isamruntime
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: isamruntime
+    spec:
+      volumes:
+        - name: isamconfig
+          emptyDir: {}
+        - name: isamruntime-logs
+          emptyDir: {}
+      containers:
+        - name: isamruntime
+          image: store/ibmcorp/isam:9.0.5.0
+          ports:
+            - containerPort: 443
+          volumeMounts:
+            - mountPath: /var/shared
+              name: isamconfig
+            - mountPath: /var/application.logs
+              name: isamruntime-logs
+          securityContext:
+            capabilities:
+              add:
+                - SYS_PTRACE
+                - SYS_RESOURCE
+          env:
+            - name: SERVICE
+              value: runtime
+            - name: CONTAINER_TIMEZONE
+              value: Europe/London
+            - name: AUTO_RELOAD_FREQUENCY
+              value: "5"
+            - name: CONFIG_SERVICE_URL
+              value: https://isamconfig:9443/shared_volume
+            - name: CONFIG_SERVICE_USER_NAME
+              value: cfgsvc
+            - name: CONFIG_SERVICE_USER_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: configreader
+                  key: cfgsvcpw
+      imagePullSecrets:
+        - name: dockerlogin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: isamruntime
+spec:
+  ports:
+    - port: 443
+      name: isamruntime
+      protocol: TCP
+  selector:
+    app: isamruntime
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: isamdsc
+  labels:
+    app: isamdsc
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: isamdsc
+    spec:
+      volumes:
+        - name: isamconfig
+          emptyDir: {}
+        - name: isamdsc-logs
+          emptyDir: {}
+      containers:
+        - name: isamdsc
+          image: store/ibmcorp/isam:9.0.5.0
+          ports:
+            - containerPort: 443
+            - containerPort: 444
+          volumeMounts:
+            - mountPath: /var/shared
+              name: isamconfig
+            - mountPath: /var/application.logs
+              name: isamdsc-logs
+          securityContext:
+            capabilities:
+              add:
+                - SYS_PTRACE
+                - SYS_RESOURCE
+          env:
+            - name: SERVICE
+              value: dsc
+            - name: INSTANCE
+              value: '1'
+            - name: CONTAINER_TIMEZONE
+              value: Europe/London
+            - name: AUTO_RELOAD_FREQUENCY
+              value: "5"
+            - name: CONFIG_SERVICE_URL
+              value: https://isamconfig:9443/shared_volume
+            - name: CONFIG_SERVICE_USER_NAME
+              value: cfgsvc
+            - name: CONFIG_SERVICE_USER_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: configreader
+                  key: cfgsvcpw
+      imagePullSecrets:
+        - name: dockerlogin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: isamdsc
+spec:
+  ports:
+    - port: 443
+      name: isamdsc-svc
+      protocol: TCP
+    - port: 444
+      name: isamdsc-rep
+      protocol: TCP
+  selector:
+    app: isamdsc

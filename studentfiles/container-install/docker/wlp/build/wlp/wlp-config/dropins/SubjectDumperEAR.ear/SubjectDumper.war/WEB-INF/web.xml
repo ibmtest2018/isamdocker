@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app id="WebApp_ID" version="3.0" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd">
+	<display-name>SubjectDumper</display-name>
+	<welcome-file-list>
+		<welcome-file>index.html</welcome-file>
+		<welcome-file>index.htm</welcome-file>
+		<welcome-file>index.jsp</welcome-file>
+		<welcome-file>default.html</welcome-file>
+		<welcome-file>default.htm</welcome-file>
+		<welcome-file>default.jsp</welcome-file>
+	</welcome-file-list>
+	<security-constraint>
+		<display-name>
+		AnyAuthenticated</display-name>
+		<web-resource-collection>
+			<web-resource-name>
+				AnyAuthenticatedResources
+			</web-resource-name>
+			<url-pattern>/whoami.jsp</url-pattern>
+			<url-pattern>/dump.jsp</url-pattern>
+                        <url-pattern>/dumpsaml.jsp</url-pattern>
+			<http-method>GET</http-method>
+			<http-method>POST</http-method>
+		</web-resource-collection>
+		<auth-constraint>
+			<role-name>all</role-name></auth-constraint>
+	</security-constraint>
+	
+	<!-- 
+    <login-config>
+      <auth-method>FORM</auth-method>
+      <realm-name>defaultRealm</realm-name>
+      <form-login-config id="FormLoginConfig_1">
+        <form-login-page>/authnerror.jsp</form-login-page>
+        <form-error-page>/authnerror.jsp</form-error-page>
+      </form-login-config>
+    </login-config>
+    -->
+	<security-constraint>
+		<display-name>RoleA</display-name>
+		<web-resource-collection>
+			<web-resource-name>
+				RoleAResources
+			</web-resource-name>
+			<url-pattern>/rolea/*</url-pattern>
+			<http-method>GET</http-method>
+			<http-method>POST</http-method>
+		</web-resource-collection>
+		<auth-constraint>
+			<role-name>RoleA</role-name>
+		</auth-constraint>
+	</security-constraint>
+
+	<security-constraint>
+		<display-name>RoleB</display-name>
+		<web-resource-collection>
+			<web-resource-name>
+				RoleBResources
+			</web-resource-name>
+			<url-pattern>/roleb/*</url-pattern>
+			<http-method>GET</http-method>
+			<http-method>POST</http-method>
+		</web-resource-collection>
+		<auth-constraint>
+			<role-name>RoleB</role-name>
+		</auth-constraint>
+	</security-constraint>
+</web-app>
