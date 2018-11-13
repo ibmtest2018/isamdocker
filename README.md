@@ -17,6 +17,7 @@ All passwords set by these scripts are `Passw0rd`.  Obviously this is not a secu
 
 # Create Keystores
 Before running any other scripts, run `studentfiles/container-install/common/create-ldap-and-postgres-keys.sh`
+
 This will create the $HOME/dockerkeys directory and populate it with keystores for PostgreSQL and OpenLDAP containers.
 
 # Native Docker
@@ -31,7 +32,9 @@ These scripts assume you have the following IP addresses available locally on yo
 If you want to use other local IP addresses then you'll need to modify the scripts.
 
 First, use `docker login` to log in to Docker.
+
 Then run `./docker-setup.sh` script to create docker containers.
+
 You can now connect to the ISAM LMI at https://192.168.42.141
 
 To clean up the docker resources created, run the `./cleanup.sh` script.
@@ -48,8 +51,11 @@ These scripts assume you have the following IP addresses available locally on yo
 If you want to use other local IP addresses then you'll need to modify the scripts.
 
 First, use `docker login` to log in to Docker.
+
 Change directory to the `iamlab` directory.
+
 Run command `docker-compose up -d` to create containers.
+
 You can now connect to the ISAM LMI at https://192.168.42.141
 
 To clean up the docker resources created, run `docker-compose down -v` command.
@@ -60,7 +66,9 @@ To set up an environment using Kubernetes, use the files in studentfiles/contain
 These scripts assume that you have the `kubectl` utility installed and that is is configured to talk to your cluster.
 
 First, run `./create-docker-store-secret.sh` command and provide your Docker credentials.
+
 Next, run `./create-secrets.sh` command to create the secrets required for the environment.
+
 Finally, run `kubectl create -f <YAML file>` to define the resources required.
 
 There are YAML files for the following environments:
