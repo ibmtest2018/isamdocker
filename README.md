@@ -52,6 +52,8 @@ If you want to use other local IP addresses then you'll need to modify the scrip
 
 First, use `docker login` to log in to Docker.
 
+Run `./create-keyshares.sh` to copy keys to $HOME/dockershare/composekeys directory
+
 Change directory to the `iamlab` directory.
 
 Run command `docker-compose up -d` to create containers.
@@ -86,3 +88,20 @@ For Google, access to a NodePort requires the following filewall rule to be crea
 
 # OpenShift
 This is a work in progress.  OpenShift is not supported by Access Manager at this time.
+
+# Backup and Restore
+
+To backup the state of your environment, use the `./sam-backup....sh` script in the directory for the environment you're using.  The backup tar file created will contain:
+- Content of the $HOME/dockerkeys directory
+- OpenLDAP directory content
+- PostgreSQL database content
+- Configuration snapshot from ISAM config container
+
+To restore from a backup, perform these steps:
+
+1. Delete the $HOME/dockerkeys and $HOME/dockershare directories
+1. Run `studentfiles/container-install/common/restore-keys.sh <archive tar file>`
+1. Complete setup for the environment you want to create (until containers are running)
+1. Run `./sam-restore....sh <archive tar file>` to restore configuration.
+
+Note that you will see errors during the restore when it attempts to create LDAP and DB objects that already exist.
